@@ -1,5 +1,6 @@
 import { useState } from "react";
 import jsPDF from "jspdf";
+import { Toaster, toast } from "react-hot-toast";
 
 const TEAM_NAMES = ["A", "B", "C", "D"];
 
@@ -12,6 +13,26 @@ function App() {
 
   const [startTime, setStartTime] = useState("19:00");
   const [endTime, setEndTime] = useState("20:30");
+
+  const notifyError = (msg) => {
+    toast.error(msg, {
+      style: {
+        border: "1px solid #ff4d4f",
+        padding: "16px",
+        color: "#fff",
+        background: "#ff4d4f",
+        borderRadius: "10px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        fontWeight: "bold",
+        fontSize: "14px",
+      },
+      iconTheme: {
+        primary: "#fff",
+        secondary: "#ff4d4f",
+      },
+      duration: 4000,
+    });
+  };
 
   const shuffleArray = (array) => [...array].sort(() => Math.random() - 0.5);
   const timeToMinutes = (time) => {
@@ -61,10 +82,9 @@ function App() {
       .filter(Boolean);
 
     if (seed.length !== teamsCount) {
-      alert(`Broj kapitena mora biti tačno ${teamsCount}!`);
+      notifyError(`Broj kapitena mora biti tačno ${teamsCount}!`);
       return;
     }
-
     seed = seed.map((p) => `${p} (C)`);
 
     const others = shuffleArray(
@@ -73,6 +93,17 @@ function App() {
         .map((p) => p.trim())
         .filter(Boolean)
     );
+
+    const totalPlayers = others.length;
+    const maxPlayers = teamsCount * playersPerTeam - teamsCount;
+
+    if (totalPlayers > maxPlayers) {
+      notifyError(
+        `Ukupan broj igrača (${totalPlayers}) je veći od maksimalnog dozvoljenog (${maxPlayers})!`
+      );
+
+      return;
+    }
 
     const teams = {};
     for (let i = 0; i < teamsCount; i++) teams[TEAM_NAMES[i]] = [];
@@ -127,124 +158,123 @@ function App() {
       cur += duration + BREAK;
     });
 
-    setTimeout(() => {
-      const doc = new jsPDF("p", "mm", "a4");
+    const doc = new jsPDF("p", "mm", "a4");
 
-      if (teamsCount === 2) {
-        doc.setFontSize(20);
-        doc.setFont("helvetica");
-        doc.text("EKIPE", 105, 20, { align: "center" });
-
-        Object.entries(teams).forEach(([t, players], i) => {
-          const x = i === 0 ? 20 : 110;
-          const y = 35;
-
-          doc.rect(x, y, 80, 80);
-          doc.setFontSize(14);
-          doc.text(`TIM ${t}`, x + 40, y + 10, { align: "center" });
-
-          let py = y + 22;
-          doc.setFontSize(11);
-          players.forEach((p) => {
-            doc.setFont("helvetica", p.includes("(C)") ? "bold" : "normal");
-            doc.text(p, x + 8, py);
-            py += 7;
-          });
-        });
-
-        window.open(doc.output("bloburl"), "_blank");
-        return;
-      }
-
-      let y = 15;
-      doc.setFontSize(18);
+    if (teamsCount === 2) {
+      doc.setFontSize(20);
       doc.setFont("helvetica");
-      doc.text("TURNIRSKI RASPORED", 105, y, { align: "center" });
-      y += 10;
-
-      doc.setFontSize(14);
-      doc.text("Ekipe", 10, y);
-      y += 6;
-
-      const boxW = teamsCount === 3 ? 60 : 45;
-      const boxH = 45;
+      doc.text("EKIPE", 105, 20, { align: "center" });
 
       Object.entries(teams).forEach(([t, players], i) => {
-        const x = 10 + i * (boxW + 5);
-        doc.rect(x, y, boxW, boxH);
+        const x = i === 0 ? 20 : 110;
+        const y = 35;
 
-        doc.setFontSize(12);
-        doc.text(`TIM ${t}`, x + boxW / 2, y + 7, { align: "center" });
+        doc.rect(x, y, 80, 80);
+        doc.setFontSize(14);
+        doc.text(`TIM ${t}`, x + 40, y + 10, { align: "center" });
 
-        let py = y + 15;
-        doc.setFontSize(10);
+        let py = y + 22;
+        doc.setFontSize(11);
         players.forEach((p) => {
-          doc.setFont("helvetica");
-          doc.text(p, x + 3, py);
-          py += 5;
+          doc.setFont("helvetica", "normal");
+          doc.text(p, x + 8, py);
+          py += 7;
         });
-      });
-
-      y += boxH + 10;
-
-      doc.setFontSize(14);
-      doc.text("Raspored utakmica", 10, y);
-      y += 10;
-
-      doc.setFontSize(11);
-      schedule.forEach((s) => {
-        doc.text(`${s.from} – ${s.to}   ${s.match}`, 10, y);
-
-        doc.line(55, y + 1, 70, y + 1);
-        doc.text(":", 72, y);
-        doc.line(75, y + 1, 90, y + 1);
-
-        y += 6;
-      });
-
-      y += 6;
-
-      doc.setFontSize(14);
-      doc.text("Tabela", 10, y);
-      y += 6;
-
-      doc.setFontSize(10);
-
-      const headers = [
-        "Tim",
-        "Odigrano",
-        "Pobjeda",
-        "Nerješeno",
-        "Izgubljenih",
-        "Bodovi",
-      ];
-      const widths = [30, 30, 30, 30, 30, 30];
-
-      let x = 10;
-      headers.forEach((h, i) => {
-        doc.rect(x, y, widths[i], 8);
-        doc.text(h, x + 2, y + 5);
-        x += widths[i];
-      });
-
-      y += 8;
-
-      Object.keys(teams).forEach((t) => {
-        let rx = 10;
-        widths.forEach((w, i) => {
-          doc.rect(rx, y, w, 8);
-          if (i === 0) doc.text(`Tim ${t}`, rx + 2, y + 5);
-          rx += w;
-        });
-        y += 8;
       });
 
       window.open(doc.output("bloburl"), "_blank");
-    }, 100);
+      return;
+    }
+
+    let y = 15;
+    doc.setFontSize(18);
+    doc.setFont("helvetica");
+    doc.text("TURNIRSKI RASPORED", 105, y, { align: "center" });
+    y += 10;
+
+    doc.setFontSize(14);
+    doc.text("Ekipe", 10, y);
+    y += 6;
+
+    const boxW = teamsCount === 3 ? 60 : 45;
+    const boxH = 45;
+
+    Object.entries(teams).forEach(([t, players], i) => {
+      const x = 10 + i * (boxW + 5);
+      doc.rect(x, y, boxW, boxH);
+
+      doc.setFontSize(12);
+      doc.text(`TIM ${t}`, x + boxW / 2, y + 7, { align: "center" });
+
+      let py = y + 15;
+      doc.setFontSize(10);
+      players.forEach((p) => {
+        doc.setFont("helvetica");
+        doc.text(p, x + 3, py);
+        py += 5;
+      });
+    });
+
+    y += boxH + 10;
+
+    doc.setFontSize(14);
+    doc.text("Raspored utakmica", 10, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    schedule.forEach((s) => {
+      doc.text(`${s.from} – ${s.to}   ${s.match}`, 10, y);
+
+      doc.line(55, y + 1, 70, y + 1);
+      doc.text(":", 72, y);
+      doc.line(75, y + 1, 90, y + 1);
+
+      y += 6;
+    });
+
+    y += 6;
+
+    doc.setFontSize(14);
+    doc.text("Tabela", 10, y);
+    y += 6;
+
+    doc.setFontSize(10);
+
+    const headers = [
+      "Tim",
+      "Odigrano",
+      "Pobjeda",
+      "Nerješeno",
+      "Izgubljenih",
+      "Bodovi",
+    ];
+    const widths = [30, 30, 30, 30, 30, 30];
+
+    let x = 10;
+    headers.forEach((h, i) => {
+      doc.rect(x, y, widths[i], 8);
+      doc.text(h, x + 2, y + 5);
+      x += widths[i];
+    });
+
+    y += 8;
+
+    Object.keys(teams).forEach((t) => {
+      let rx = 10;
+      widths.forEach((w, i) => {
+        doc.rect(rx, y, w, 8);
+        if (i === 0) doc.text(`Tim ${t}`, rx + 2, y + 5);
+        rx += w;
+      });
+      y += 8;
+    });
+
+    window.open(doc.output("bloburl"), "_blank");
   };
 
   return (
     <div className="App">
+      <Toaster />
       <h2>Termin Generator</h2>
 
       <div className="form-wrap">

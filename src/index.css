@@ -183,8 +183,8 @@ button:hover {
   .App {
     width: 100%;
     padding: 25px 20px;
-    margin-top: 20px;
-    margin-bottom: 20px;
+    margin-top: 25px;
+    margin-bottom: 25px;
   }
 
   .form-group input[type="time"],
