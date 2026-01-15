@@ -6,7 +6,7 @@
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -183,6 +183,8 @@ button:hover {
   .App {
     width: 100%;
     padding: 25px 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
   }
 
   .form-group input[type="time"],
