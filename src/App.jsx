@@ -127,118 +127,120 @@ function App() {
       cur += duration + BREAK;
     });
 
-    const doc = new jsPDF("p", "mm", "a4");
+    setTimeout(() => {
+      const doc = new jsPDF("p", "mm", "a4");
 
-    if (teamsCount === 2) {
-      doc.setFontSize(20);
+      if (teamsCount === 2) {
+        doc.setFontSize(20);
+        doc.setFont("helvetica");
+        doc.text("EKIPE", 105, 20, { align: "center" });
+
+        Object.entries(teams).forEach(([t, players], i) => {
+          const x = i === 0 ? 20 : 110;
+          const y = 35;
+
+          doc.rect(x, y, 80, 80);
+          doc.setFontSize(14);
+          doc.text(`TIM ${t}`, x + 40, y + 10, { align: "center" });
+
+          let py = y + 22;
+          doc.setFontSize(11);
+          players.forEach((p) => {
+            doc.setFont("helvetica", p.includes("(C)") ? "bold" : "normal");
+            doc.text(p, x + 8, py);
+            py += 7;
+          });
+        });
+
+        window.open(doc.output("bloburl"), "_blank");
+        return;
+      }
+
+      let y = 15;
+      doc.setFontSize(18);
       doc.setFont("helvetica");
-      doc.text("EKIPE", 105, 20, { align: "center" });
+      doc.text("TURNIRSKI RASPORED", 105, y, { align: "center" });
+      y += 10;
+
+      doc.setFontSize(14);
+      doc.text("Ekipe", 10, y);
+      y += 6;
+
+      const boxW = teamsCount === 3 ? 60 : 45;
+      const boxH = 45;
 
       Object.entries(teams).forEach(([t, players], i) => {
-        const x = i === 0 ? 20 : 110;
-        const y = 35;
+        const x = 10 + i * (boxW + 5);
+        doc.rect(x, y, boxW, boxH);
 
-        doc.rect(x, y, 80, 80);
-        doc.setFontSize(14);
-        doc.text(`TIM ${t}`, x + 40, y + 10, { align: "center" });
+        doc.setFontSize(12);
+        doc.text(`TIM ${t}`, x + boxW / 2, y + 7, { align: "center" });
 
-        let py = y + 22;
-        doc.setFontSize(11);
+        let py = y + 15;
+        doc.setFontSize(10);
         players.forEach((p) => {
-          doc.setFont("helvetica", p.includes("(C)") ? "bold" : "normal");
-          doc.text(p, x + 8, py);
-          py += 7;
+          doc.setFont("helvetica");
+          doc.text(p, x + 3, py);
+          py += 5;
         });
       });
 
-      window.open(doc.output("bloburl"), "_blank");
-      return;
-    }
+      y += boxH + 10;
 
-    let y = 15;
-    doc.setFontSize(18);
-    doc.setFont("helvetica");
-    doc.text("TURNIRSKI RASPORED", 105, y, { align: "center" });
-    y += 10;
+      doc.setFontSize(14);
+      doc.text("Raspored utakmica", 10, y);
+      y += 10;
 
-    doc.setFontSize(14);
-    doc.text("Ekipe", 10, y);
-    y += 6;
+      doc.setFontSize(11);
+      schedule.forEach((s) => {
+        doc.text(`${s.from} – ${s.to}   ${s.match}`, 10, y);
 
-    const boxW = teamsCount === 3 ? 60 : 45;
-    const boxH = 45;
+        doc.line(55, y + 1, 70, y + 1);
+        doc.text(":", 72, y);
+        doc.line(75, y + 1, 90, y + 1);
 
-    Object.entries(teams).forEach(([t, players], i) => {
-      const x = 10 + i * (boxW + 5);
-      doc.rect(x, y, boxW, boxH);
-
-      doc.setFontSize(12);
-      doc.text(`TIM ${t}`, x + boxW / 2, y + 7, { align: "center" });
-
-      let py = y + 15;
-      doc.setFontSize(10);
-      players.forEach((p) => {
-        doc.setFont("helvetica");
-        doc.text(p, x + 3, py);
-        py += 5;
+        y += 6;
       });
-    });
-
-    y += boxH + 10;
-
-    doc.setFontSize(14);
-    doc.text("Raspored utakmica", 10, y);
-    y += 10;
-
-    doc.setFontSize(11);
-    schedule.forEach((s) => {
-      doc.text(`${s.from} – ${s.to}   ${s.match}`, 10, y);
-
-      doc.line(55, y + 1, 70, y + 1);
-      doc.text(":", 72, y);
-      doc.line(75, y + 1, 90, y + 1);
 
       y += 6;
-    });
 
-    y += 6;
+      doc.setFontSize(14);
+      doc.text("Tabela", 10, y);
+      y += 6;
 
-    doc.setFontSize(14);
-    doc.text("Tabela", 10, y);
-    y += 6;
+      doc.setFontSize(10);
 
-    doc.setFontSize(10);
+      const headers = [
+        "Tim",
+        "Odigrano",
+        "Pobjeda",
+        "Nerješeno",
+        "Izgubljenih",
+        "Bodovi",
+      ];
+      const widths = [30, 30, 30, 30, 30, 30];
 
-    const headers = [
-      "Tim",
-      "Odigrano",
-      "Pobjeda",
-      "Nerješeno",
-      "Izgubljenih",
-      "Bodovi",
-    ];
-    const widths = [30, 30, 30, 30, 30, 30];
-
-    let x = 10;
-    headers.forEach((h, i) => {
-      doc.rect(x, y, widths[i], 8);
-      doc.text(h, x + 2, y + 5);
-      x += widths[i];
-    });
-
-    y += 8;
-
-    Object.keys(teams).forEach((t) => {
-      let rx = 10;
-      widths.forEach((w, i) => {
-        doc.rect(rx, y, w, 8);
-        if (i === 0) doc.text(`Tim ${t}`, rx + 2, y + 5);
-        rx += w;
+      let x = 10;
+      headers.forEach((h, i) => {
+        doc.rect(x, y, widths[i], 8);
+        doc.text(h, x + 2, y + 5);
+        x += widths[i];
       });
-      y += 8;
-    });
 
-    window.open(doc.output("bloburl"), "_blank");
+      y += 8;
+
+      Object.keys(teams).forEach((t) => {
+        let rx = 10;
+        widths.forEach((w, i) => {
+          doc.rect(rx, y, w, 8);
+          if (i === 0) doc.text(`Tim ${t}`, rx + 2, y + 5);
+          rx += w;
+        });
+        y += 8;
+      });
+
+      window.open(doc.output("bloburl"), "_blank");
+    }, 100);
   };
 
   return (
