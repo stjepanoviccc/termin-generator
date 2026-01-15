@@ -1,0 +1,198 @@
+/* ========================== GLOBAL ========================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(to bottom, #a8e6cf, #dcedc1);
+}
+
+/* ========================== FORMA ========================== */
+.App {
+  width: 100%;
+  max-width: 800px;
+  background-color: #ffffff;
+  border-radius: 25px;
+  padding: 40px 30px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ---------- Naslov ---------- */
+h2 {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1b5e20;
+  margin-bottom: 30px;
+  text-shadow: 1px 1px #a5d6a7;
+}
+
+/* ========================== FORM WRAP ========================== */
+.form-wrap {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  /* razmak između kolona */
+  justify-content: space-between;
+}
+
+/* Form grupa sada fleksibilno zauzima do pola širine na desktopu */
+.form-wrap .form-group {
+  flex: 1 1 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.form-group label {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #2e7d32;
+  font-size: 1rem;
+}
+
+/* ---------- Standardni input ---------- */
+.form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1px solid #a5d6a7;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+  border-color: #388e3c;
+  box-shadow: 0 0 6px rgba(56, 142, 60, 0.3);
+  outline: none;
+}
+
+/* ---------- Textarea ---------- */
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1px solid #a5d6a7;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.form-group textarea:focus {
+  border-color: #388e3c;
+  box-shadow: 0 0 6px rgba(56, 142, 60, 0.3);
+  outline: none;
+}
+
+/* ---------- Select ---------- */
+.form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1px solid #a5d6a7;
+  background-color: #ffffff;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: border 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.form-group select:focus {
+  border-color: #388e3c;
+  box-shadow: 0 0 6px rgba(56, 142, 60, 0.3);
+  outline: none;
+  background-color: #f1f8f1;
+}
+
+/* ========================== BUTTON ========================== */
+button {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fff;
+  background-color: #2e7d32;
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background-color: #1b5e20;
+  transform: scale(1.03);
+}
+
+/* ========================== TIME GROUP ========================== */
+.time-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.time-group .form-group {
+  flex: 1 1 48%;
+}
+
+.time-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #2e7d32;
+}
+
+/* ========================== RESPONSIVE ========================== */
+@media (max-width: 768px) {
+  .form-wrap {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-wrap .form-group {
+    flex: 1 1 100%;
+  }
+
+  .time-group {
+    flex-direction: column;
+  }
+
+  .time-group .form-group {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .App {
+    width: 100%;
+    padding: 25px 20px;
+  }
+
+  .form-group input[type="time"],
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+  }
+
+  button {
+    font-size: 1rem;
+    padding: 12px;
+  }
+}
