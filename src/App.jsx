@@ -229,6 +229,8 @@ function App() {
       doc.text(":", 72, y);
       doc.line(75, y + 1, 90, y + 1);
 
+      doc.line(95, y + 1, 110, y + 1);
+
       y += 6;
     });
 
@@ -240,15 +242,8 @@ function App() {
 
     doc.setFontSize(10);
 
-    const headers = [
-      "Tim",
-      "Odigrano",
-      "Pobjeda",
-      "Nerješeno",
-      "Izgubljenih",
-      "Bodovi",
-    ];
-    const widths = [30, 30, 30, 30, 30, 30];
+    const headers = ["Tim", "Pobjeda", "Nerješeno", "Bodovi"];
+    const widths = [30, 30, 30, 30];
 
     let x = 10;
     headers.forEach((h, i) => {
