@@ -1,18 +1,32 @@
 import { useState } from "react";
 import jsPDF from "jspdf";
 import { Toaster, toast } from "react-hot-toast";
+import { NESO_PLAYERS } from "./players";
 
 const TEAM_NAMES = ["A", "B", "C", "D"];
 
+const DEFAULT_TEAMS_COUNT = 3;
+const DEFAULT_PLAYERS_PER_TEAM = 5;
+const DEFAULT_START_TIME = "19:00";
+const DEFAULT_END_TIME = "20:30";
+
 function App() {
-  const [teamsCount, setTeamsCount] = useState(3);
-  const [playersPerTeam, setPlayersPerTeam] = useState(5);
+  const [nesoMode, setNesoMode] = useState(false);
+
+  const [teamsCount, setTeamsCount] = useState(DEFAULT_TEAMS_COUNT);
+  const [playersPerTeam, setPlayersPerTeam] = useState(
+    DEFAULT_PLAYERS_PER_TEAM
+  );
 
   const [seedPlayers, setSeedPlayers] = useState("");
   const [otherPlayers, setOtherPlayers] = useState("");
 
-  const [startTime, setStartTime] = useState("19:00");
-  const [endTime, setEndTime] = useState("20:30");
+  const [selectedNeso, setSelectedNeso] = useState([]);
+
+  const [startTime, setStartTime] = useState(DEFAULT_START_TIME);
+  const [endTime, setEndTime] = useState(DEFAULT_END_TIME);
+
+  const nesoCapacity = teamsCount * playersPerTeam;
 
   const notifyError = (msg) => {
     toast.error(msg, {
@@ -31,6 +45,22 @@ function App() {
         secondary: "#ff4d4f",
       },
       duration: 4000,
+    });
+  };
+
+  const notifyInfo = (msg) => {
+    toast(msg, {
+      style: {
+        border: "1px solid #2e7d32",
+        padding: "16px",
+        color: "#fff",
+        background: "#2e7d32",
+        borderRadius: "10px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+        fontWeight: "bold",
+        fontSize: "14px",
+      },
+      duration: 3000,
     });
   };
 
@@ -75,7 +105,66 @@ function App() {
     return rounds.flat();
   };
 
-  const generateAndOpenPDF = () => {
+  /* ---------- MOD ---------- */
+
+  const resetConfig = () => {
+    setTeamsCount(DEFAULT_TEAMS_COUNT);
+    setPlayersPerTeam(DEFAULT_PLAYERS_PER_TEAM);
+    setSeedPlayers("");
+    setOtherPlayers("");
+    setSelectedNeso([]);
+    setStartTime(DEFAULT_START_TIME);
+    setEndTime(DEFAULT_END_TIME);
+  };
+
+  const toggleMode = () => {
+    resetConfig();
+    setNesoMode((prev) => !prev);
+  };
+
+  /* ---------- NESO SELEKCIJA ---------- */
+
+  const toggleNesoPlayer = (name) => {
+    setSelectedNeso((prev) => {
+      if (prev.includes(name)) return prev.filter((n) => n !== name);
+
+      if (prev.length >= nesoCapacity) {
+        notifyError(
+          `Možeš izabrati maksimalno ${nesoCapacity} igrača (${teamsCount} x ${playersPerTeam})!`
+        );
+        return prev;
+      }
+
+      return [...prev, name];
+    });
+  };
+
+  const trimSelectionTo = (capacity) => {
+    setSelectedNeso((prev) => {
+      if (prev.length <= capacity) return prev;
+      notifyInfo(`Selekcija smanjena na ${capacity} igrača.`);
+      return prev.slice(0, capacity);
+    });
+  };
+
+  const changeTeamsCount = (value) => {
+    setTeamsCount(value);
+    if (nesoMode) trimSelectionTo(value * playersPerTeam);
+  };
+
+  const changePlayersPerTeam = (value) => {
+    setPlayersPerTeam(value);
+    if (nesoMode) trimSelectionTo(teamsCount * value);
+  };
+
+  /* ---------- SASTAVLJANJE EKIPA ---------- */
+
+  // Imena u ekipi se ispisuju po abecedi – redoslijed ne odaje ničiju snagu.
+  const sortNames = (players) =>
+    [...players].sort((a, b) => a.localeCompare(b, "sr"));
+
+  // Ručni mod: kapiteni + ostali igrači se dijele random.
+  const buildManualTeams = () => {
     let seed = seedPlayers
       .split(/,|\n/)
       .map((p) => p.trim())
@@ -83,7 +172,7 @@ function App() {
 
     if (seed.length !== teamsCount) {
       notifyError(`Broj kapitena mora biti tačno ${teamsCount}!`);
-      return;
+      return null;
     }
     seed = seed.map((p) => `${p} (C)`);
 
@@ -101,8 +190,7 @@ function App() {
       notifyError(
         `Ukupan broj igrača (${totalPlayers}) je veći od maksimalnog dozvoljenog (${maxPlayers})!`
       );
-
-      return;
+      return null;
     }
 
     const teams = {};
@@ -118,6 +206,64 @@ function App() {
       teams[TEAM_NAMES[ti]].push(p);
       ti = (ti + 1) % teamsCount;
     });
+
+    // Kapiten ostaje prvi, ostali po abecedi.
+    for (let i = 0; i < teamsCount; i++) {
+      const [captain, ...rest] = teams[TEAM_NAMES[i]];
+      teams[TEAM_NAMES[i]] = [captain, ...sortNames(rest)];
+    }
+
+    return teams;
+  };
+
+  // NESO mod: igrači nose snagu 5 ili 4, pa se ravnomjerno raspoređuju.
+  const buildNesoTeams = () => {
+    if (selectedNeso.length < teamsCount) {
+      notifyError(`Izaberi najmanje ${teamsCount} igrača (po jedan za ekipu)!`);
+      return null;
+    }
+
+    if (selectedNeso.length > nesoCapacity) {
+      notifyError(
+        `Izabrano je ${selectedNeso.length} igrača, a maksimum je ${nesoCapacity}!`
+      );
+      return null;
+    }
+
+    const byName = new Map(NESO_PLAYERS.map((p) => [p.name, p]));
+    const picked = selectedNeso.map((name) => byName.get(name)).filter(Boolean);
+
+    const strong = shuffleArray(picked.filter((p) => p.strength === 5));
+    const weak = shuffleArray(picked.filter((p) => p.strength !== 5));
+
+    const names = TEAM_NAMES.slice(0, teamsCount);
+    // Random redoslijed ekipa: kad broj ne dijeli ravno, "viška" igrač ne ide uvijek u ekipu A.
+    const order = shuffleArray(names);
+
+    const teams = {};
+    names.forEach((t) => (teams[t] = []));
+
+    // Prvo jači igrači round-robin: 9 petica -> 3/3/3, 7 petica -> 3/2/2.
+    strong.forEach((p, i) => {
+      teams[order[i % teamsCount]].push(p.name);
+    });
+
+    // Zatim slabiji, uvijek u ekipu koja trenutno ima najmanje igrača.
+    weak.forEach((p) => {
+      const openTeams = order.filter((t) => teams[t].length < playersPerTeam);
+      const min = Math.min(...openTeams.map((t) => teams[t].length));
+      const target = openTeams.find((t) => teams[t].length === min);
+      teams[target].push(p.name);
+    });
+
+    names.forEach((t) => (teams[t] = sortNames(teams[t])));
+
+    return teams;
+  };
+
+  const generateAndOpenPDF = () => {
+    const teams = nesoMode ? buildNesoTeams() : buildManualTeams();
+    if (!teams) return;
 
     for (let i = 0; i < teamsCount; i++) {
       while (teams[TEAM_NAMES[i]].length < playersPerTeam) {
@@ -229,8 +375,6 @@ function App() {
       doc.text(":", 72, y);
       doc.line(75, y + 1, 90, y + 1);
 
-      doc.line(95, y + 1, 110, y + 1);
-
       y += 6;
     });
 
@@ -242,8 +386,9 @@ function App() {
 
     doc.setFontSize(10);
 
-    const headers = ["Tim", "Pobjeda", "Nerješeno", "Bodovi"];
-    const widths = [30, 30, 30, 30];
+    // "Bodovi" zauzima širinu dvije nekadašnje kolone (Pobjeda + Nerješeno).
+    const headers = ["Tim", "Bodovi", "Ukupno"];
+    const widths = [30, 60, 30];
 
     let x = 10;
     headers.forEach((h, i) => {
@@ -267,17 +412,32 @@ function App() {
     window.open(doc.output("bloburl"), "_blank");
   };
 
+  const jokers = Math.max(0, nesoCapacity - selectedNeso.length);
+
+  // Prikaz po abecedi – da redoslijed u listi ne odaje ko koju snagu nosi.
+  const displayPlayers = [...NESO_PLAYERS].sort((a, b) =>
+    a.name.localeCompare(b.name, "sr")
+  );
+
   return (
     <div className="App">
       <Toaster />
       <h2>Termin Generator</h2>
+
+      <button
+        type="button"
+        className={`mode-btn ${nesoMode ? "active" : ""}`}
+        onClick={toggleMode}
+      >
+        {nesoMode ? "REGULARNI TERMIN" : "NESO TERMIN"}
+      </button>
 
       <div className="form-wrap">
         <div className="form-group">
           <label>Broj ekipa:</label>
           <select
             value={teamsCount}
-            onChange={(e) => setTeamsCount(Number(e.target.value))}
+            onChange={(e) => changeTeamsCount(Number(e.target.value))}
           >
             <option value={2}>2</option>
             <option value={3}>3</option>
@@ -289,7 +449,7 @@ function App() {
           <label>Igrača po ekipi:</label>
           <select
             value={playersPerTeam}
-            onChange={(e) => setPlayersPerTeam(Number(e.target.value))}
+            onChange={(e) => changePlayersPerTeam(Number(e.target.value))}
           >
             <option value={4}>4</option>
             <option value={5}>5</option>
@@ -297,25 +457,73 @@ function App() {
           </select>
         </div>
 
-        <div className="form-group">
-          <label>Kapiteni (jedan po liniji ili zarezom):</label>
-          <textarea
-            value={seedPlayers}
-            onChange={(e) => setSeedPlayers(e.target.value)}
-            rows={6}
-            placeholder="Neso, Bojan, Dado..."
-          />
-        </div>
+        {nesoMode ? (
+          <div className="form-group players-group">
+            <label>
+              Igrači na terminu ({selectedNeso.length}/{nesoCapacity})
+            </label>
 
-        <div className="form-group">
-          <label>Ostali igrači (jedan po liniji ili zarezom):</label>
-          <textarea
-            value={otherPlayers}
-            onChange={(e) => setOtherPlayers(e.target.value)}
-            rows={6}
-            placeholder="Stefan, Nikola, Darko..."
-          />
-        </div>
+            <div className="players-meta">
+              <span>Joker: {jokers}</span>
+              {selectedNeso.length > 0 && (
+                <button
+                  type="button"
+                  className="clear-btn"
+                  onClick={() => setSelectedNeso([])}
+                >
+                  Očisti
+                </button>
+              )}
+            </div>
+
+            <div className="players-grid">
+              {displayPlayers.map((p) => {
+                const checked = selectedNeso.includes(p.name);
+                const disabled =
+                  !checked && selectedNeso.length >= nesoCapacity;
+
+                return (
+                  <label
+                    key={p.name}
+                    className={`player-item ${checked ? "checked" : ""} ${
+                      disabled ? "disabled" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleNesoPlayer(p.name)}
+                    />
+                    <span className="player-name">{p.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="form-group">
+              <label>Kapiteni (jedan po liniji ili zarezom):</label>
+              <textarea
+                value={seedPlayers}
+                onChange={(e) => setSeedPlayers(e.target.value)}
+                rows={6}
+                placeholder="Neso, Bojan, Dado..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Ostali igrači (jedan po liniji ili zarezom):</label>
+              <textarea
+                value={otherPlayers}
+                onChange={(e) => setOtherPlayers(e.target.value)}
+                rows={6}
+                placeholder="Stefan, Nikola, Darko..."
+              />
+            </div>
+          </>
+        )}
 
         <div className="time-group">
           <div className="form-group">
