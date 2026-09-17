@@ -22,6 +22,7 @@ function App() {
   const [otherPlayers, setOtherPlayers] = useState("");
 
   const [selectedNeso, setSelectedNeso] = useState([]);
+  const [nesoCaptains, setNesoCaptains] = useState([]);
 
   const [startTime, setStartTime] = useState(DEFAULT_START_TIME);
   const [endTime, setEndTime] = useState(DEFAULT_END_TIME);
@@ -113,6 +114,7 @@ function App() {
     setSeedPlayers("");
     setOtherPlayers("");
     setSelectedNeso([]);
+    setNesoCaptains([]);
     setStartTime(DEFAULT_START_TIME);
     setEndTime(DEFAULT_END_TIME);
   };
@@ -126,7 +128,11 @@ function App() {
 
   const toggleNesoPlayer = (name) => {
     setSelectedNeso((prev) => {
-      if (prev.includes(name)) return prev.filter((n) => n !== name);
+      if (prev.includes(name)) {
+        // Izbačen igrač ne može ostati kapiten.
+        setNesoCaptains((caps) => caps.filter((c) => c !== name));
+        return prev.filter((n) => n !== name);
+      }
 
       if (prev.length >= nesoCapacity) {
         notifyError(
@@ -139,16 +145,38 @@ function App() {
     });
   };
 
+  const toggleNesoCaptain = (name) => {
+    setNesoCaptains((prev) => {
+      if (prev.includes(name)) return prev.filter((n) => n !== name);
+
+      if (prev.length >= teamsCount) {
+        notifyError(`Možeš izabrati najviše ${teamsCount} kapitena!`);
+        return prev;
+      }
+
+      return [...prev, name];
+    });
+  };
+
+  const clearNesoSelection = () => {
+    setSelectedNeso([]);
+    setNesoCaptains([]);
+  };
+
   const trimSelectionTo = (capacity) => {
     setSelectedNeso((prev) => {
       if (prev.length <= capacity) return prev;
       notifyInfo(`Selekcija smanjena na ${capacity} igrača.`);
-      return prev.slice(0, capacity);
+
+      const kept = prev.slice(0, capacity);
+      setNesoCaptains((caps) => caps.filter((c) => kept.includes(c)));
+      return kept;
     });
   };
 
   const changeTeamsCount = (value) => {
     setTeamsCount(value);
+    setNesoCaptains((prev) => prev.slice(0, value));
     if (nesoMode) trimSelectionTo(value * playersPerTeam);
   };
 
@@ -233,8 +261,13 @@ function App() {
     const byName = new Map(NESO_PLAYERS.map((p) => [p.name, p]));
     const picked = selectedNeso.map((name) => byName.get(name)).filter(Boolean);
 
-    const strong = shuffleArray(picked.filter((p) => p.strength === 5));
-    const weak = shuffleArray(picked.filter((p) => p.strength !== 5));
+    const captains = shuffleArray(
+      picked.filter((p) => nesoCaptains.includes(p.name))
+    );
+    const rest = picked.filter((p) => !nesoCaptains.includes(p.name));
+
+    const strong = shuffleArray(rest.filter((p) => p.strength === 5));
+    const weak = shuffleArray(rest.filter((p) => p.strength !== 5));
 
     const names = TEAM_NAMES.slice(0, teamsCount);
     // Random redoslijed ekipa: kad broj ne dijeli ravno, "viška" igrač ne ide uvijek u ekipu A.
@@ -243,20 +276,36 @@ function App() {
     const teams = {};
     names.forEach((t) => (teams[t] = []));
 
-    // Prvo jači igrači round-robin: 9 petica -> 3/3/3, 7 petica -> 3/2/2.
-    strong.forEach((p, i) => {
-      teams[order[i % teamsCount]].push(p.name);
+    // Kapiteni prvi – svaki u svoju ekipu.
+    captains.forEach((p, i) => {
+      teams[order[i]].push({ ...p, captain: true });
+    });
+
+    const openTeams = () => order.filter((t) => teams[t].length < playersPerTeam);
+    const strongIn = (t) => teams[t].filter((p) => p.strength === 5).length;
+
+    // Jači igrači idu u ekipu koja trenutno ima najmanje petica – računajući i kapitene.
+    strong.forEach((p) => {
+      const open = openTeams();
+      const min = Math.min(...open.map(strongIn));
+      teams[open.find((t) => strongIn(t) === min)].push(p);
     });
 
     // Zatim slabiji, uvijek u ekipu koja trenutno ima najmanje igrača.
     weak.forEach((p) => {
-      const openTeams = order.filter((t) => teams[t].length < playersPerTeam);
-      const min = Math.min(...openTeams.map((t) => teams[t].length));
-      const target = openTeams.find((t) => teams[t].length === min);
-      teams[target].push(p.name);
+      const open = openTeams();
+      const min = Math.min(...open.map((t) => teams[t].length));
+      teams[open.find((t) => teams[t].length === min)].push(p);
     });
 
-    names.forEach((t) => (teams[t] = sortNames(teams[t])));
+    // Kapiten se ispisuje prvi sa oznakom (C), ostatak ekipe po abecedi.
+    names.forEach((t) => {
+      const captain = teams[t].find((p) => p.captain);
+      const others = sortNames(
+        teams[t].filter((p) => !p.captain).map((p) => p.name)
+      );
+      teams[t] = captain ? [`${captain.name} (C)`, ...others] : others;
+    });
 
     return teams;
   };
@@ -419,6 +468,9 @@ function App() {
     a.name.localeCompare(b.name, "sr")
   );
 
+  // Za kapitene se nude samo igrači koji su već selektovani za termin.
+  const captainCandidates = sortNames(selectedNeso);
+
   return (
     <div className="App">
       <Toaster />
@@ -469,7 +521,7 @@ function App() {
                 <button
                   type="button"
                   className="clear-btn"
-                  onClick={() => setSelectedNeso([])}
+                  onClick={clearNesoSelection}
                 >
                   Očisti
                 </button>
@@ -500,6 +552,39 @@ function App() {
                 );
               })}
             </div>
+
+            {selectedNeso.length > 0 && (
+              <>
+                <label className="captains-label">
+                  Kapiteni ({nesoCaptains.length}/{teamsCount}) – opciono
+                </label>
+
+                <div className="players-grid captains-grid">
+                  {captainCandidates.map((name) => {
+                    const checked = nesoCaptains.includes(name);
+                    const disabled =
+                      !checked && nesoCaptains.length >= teamsCount;
+
+                    return (
+                      <label
+                        key={name}
+                        className={`player-item ${checked ? "checked" : ""} ${
+                          disabled ? "disabled" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={disabled}
+                          onChange={() => toggleNesoCaptain(name)}
+                        />
+                        <span className="player-name">{name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>

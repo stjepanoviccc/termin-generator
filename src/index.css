@@ -210,6 +210,30 @@ button:hover {
   background-color: #fbfffb;
 }
 
+.captains-label {
+  width: 100%;
+  margin: 15px 0 8px;
+  text-align: left;
+  font-weight: bold;
+  color: #2e7d32;
+  font-size: 1rem;
+}
+
+.captains-grid {
+  max-height: 200px;
+  background-color: #fffdf7;
+  border-color: #ffcc80;
+}
+
+.captains-grid .player-item.checked {
+  background-color: #fff3e0;
+  border-color: #ef6c00;
+}
+
+.captains-grid .player-item input[type="checkbox"] {
+  accent-color: #ef6c00;
+}
+
 .player-item {
   display: flex;
   align-items: center;
